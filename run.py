@@ -92,10 +92,15 @@ def create_side_by_side(image, depth, grayscale):
     normalized_depth = 255 * (depth - depth_min) / (depth_max - depth_min)
     normalized_depth *= 3
 
+    #normalized depth is greyscale, right side is colored image
+    #generate a line that corresponds to ground level view
+
+    # depth_line = normalized_depth[image.shape[1]*2/3:image.shape[1]*2/3, :]
+    
     right_side = np.repeat(np.expand_dims(normalized_depth, 2), 3, axis=2) / 3
     if not grayscale:
         right_side = cv2.applyColorMap(np.uint8(right_side), cv2.COLORMAP_INFERNO)
-
+        
     if image is None:
         return right_side
     else:
@@ -169,7 +174,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
 
     else:
         with torch.no_grad():
-            fps = 1
+            fps = 30
             video = VideoStream(0).start()
             time_start = time.time()
             frame_index = 0

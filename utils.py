@@ -5,7 +5,7 @@ import re
 import numpy as np
 import cv2
 import torch
-
+import matplotlib.pyplot as plt
 
 def read_pfm(path):
     """Read pfm file.
@@ -182,12 +182,14 @@ def write_depth(path, depth, grayscale, bits=1):
     depth_max = depth.max()
 
     max_val = (2**(8*bits))-1
-
+    depth_values = np.empty(depth.shape)
     if depth_max - depth_min > np.finfo("float").eps:
         out = max_val * (depth - depth_min) / (depth_max - depth_min)
     else:
         out = np.zeros(depth.shape, dtype=depth.dtype)
 
+    depth_values = out
+    
     if not grayscale:
         out = cv2.applyColorMap(np.uint8(out), cv2.COLORMAP_INFERNO)
 
@@ -196,4 +198,21 @@ def write_depth(path, depth, grayscale, bits=1):
     elif bits == 2:
         cv2.imwrite(path + ".png", out.astype("uint16"))
 
+    map2d(depth_values)
     return
+
+def map2d(image, scale = 0):
+    r, c = image.shape
+    #this code converts the inferno to a 2d plot considering arbitrary 2d scale
+    if not scale:
+        scale = np.min(image)   # this shall correspond to 1m
+    
+    depth_line = image[3 * (r//4), :]
+    depth_line/=(scale+1)
+
+    y_axis = np.arange(-c//2,c//2,1)[:c]
+    y_axis = np.flip(y_axis, axis=0)
+
+    # the distances are flipped at this point for the inferno, change the normalization
+    plt.scatter(depth_line, y_axis, label='Points', color='blue', marker='o')
+    plt.show()
