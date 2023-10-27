@@ -214,5 +214,6 @@ def map2d(image, scale = 0):
     y_axis = np.flip(y_axis, axis=0)
 
     # the distances are flipped at this point for the inferno, change the normalization
+    # we also need some threshold to determine the bot can definitely go there
     plt.scatter(depth_line, y_axis, label='Points', color='blue', marker='o')
     plt.show()
