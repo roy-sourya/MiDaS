@@ -1,11 +1,13 @@
 """Utils for monoDepth.
 """
+import math
 import sys
 import re
 import numpy as np
 import cv2
 import torch
 import matplotlib.pyplot as plt
+import astar
 
 def read_pfm(path):
     """Read pfm file.
@@ -208,6 +210,7 @@ def map2d(image, scale = 0):
         scale = np.min(image)   # this shall correspond to 1m
     
     depth_line = image[3 * (r//4), :]
+    depth_line = np.max(depth_line) - depth_line + np.min(depth_line)
     depth_line/=(scale+1)
 
     y_axis = np.arange(-c//2,c//2,1)[:c]
@@ -215,5 +218,98 @@ def map2d(image, scale = 0):
 
     # the distances are flipped at this point for the inferno, change the normalization
     # we also need some threshold to determine the bot can definitely go there
-    plt.scatter(depth_line, y_axis, label='Points', color='blue', marker='o')
+    plt.scatter(depth_line, y_axis, c = depth_line, cmap = 'viridis', marker='.')
+    plt.title("2d transformed distance plot")
     plt.show()
+
+    map2d_truncated(depth_line, c)
+    return
+
+def map2d_truncated(depth_line, c):
+    delta = np.max(depth_line) - np.min(depth_line)
+    # depth_line[depth_line > maxVal/2] = 0   #this can serve as the bot's starting point
+
+    y_axis = np.arange(-c//2,c//2,1)[:c]
+    y_axis = np.flip(y_axis, axis=0)
+
+    #TODO: check this code
+    point_stack = np.dstack((depth_line, y_axis))[0]
+    point_stack_valid = []
+
+    for element in point_stack:
+        if element[0] <= np.min(depth_line) + delta/2:
+            # point_stack_valid = np.append(point_stack_valid, element, axis = 0)
+            point_stack_valid.append((element[0], element[1]))
+            
+    depth_line, y_axis = [], []
+    point_stack_valid = [[math.floor(point) for point in points] for points in point_stack_valid]
+
+    for arr in point_stack_valid:
+        depth_line.append(arr[0])
+        y_axis.append(arr[1])
+
+    depth_line = np.array(depth_line)
+    y_axis = np.array(y_axis)
+    # the distances are flipped at this point for the inferno, change the normalization
+    # we also need some threshold to determine the bot can definitely go there
+    plt.scatter(depth_line, y_axis, c = depth_line, cmap = 'viridis', marker='.')
+    plt.title("2d transformed distance plot with truncated features")
+    plt.show()
+
+    depth_line_padded, y_axis_padded = map2d_padding(depth_line, y_axis, 10)
+    traversal(depth_line, y_axis, depth_line_padded, y_axis_padded, (1, 1), (np.max(depth_line), 0))
+    return
+
+def map2d_padding(depth_line, y_axis, dim):
+    # this function adds padding to the depth line that emulates the rectangular size of the agent
+    # the agent can then be considered a point object
+
+    #TODO: THIS DIM NEEDS TO BE SCALED IN SOME MANNER, FOR NOW HARDCODING TO 1
+    #TODO: all point_stack_valid points needs to be floored, otherwise the optimal path goes over decimal points
+
+    depth_line_padded = depth_line - dim
+    depth_line_padded = np.floor(depth_line_padded)
+
+    for i in range(1, dim):
+        depth_line_padded = np.append(depth_line_padded, depth_line + i)
+        depth_line_padded = np.append(depth_line_padded, depth_line - i)
+        depth_line_padded = np.append(depth_line_padded, depth_line + i)
+
+    y_axis_padded = y_axis - dim
+    y_axis_padded = np.floor(y_axis_padded)
+
+    for i in range(1, dim):
+        y_axis_padded = np.append(y_axis_padded, y_axis - i)
+        y_axis_padded = np.append(y_axis_padded, y_axis + i)
+        y_axis_padded = np.append(y_axis_padded, y_axis + i)
+
+    plt.scatter(depth_line, y_axis, c = depth_line, cmap = 'viridis', marker='.')
+    plt.scatter(depth_line_padded, y_axis_padded, c = depth_line_padded, cmap = 'Blues', marker='x')
+    plt.title("2d transformed distance plot with truncated features and padding")
+    plt.show()
+    return depth_line_padded, y_axis_padded
+
+def traversal(depth_line, y_axis, depth_line_padded, y_axis_padded, start, end):
+    # this function uses a star considering a certain width of the agent and a certain predetermined end point 
+    # the integer points are considered as points of traversal
+
+    print("Implement the traversal algo")
+
+    point_stack_valid = list(zip(depth_line_padded, y_axis_padded))
+    final_path = astar.NXImplementation.createGraphXXX(point_stack_valid, depth_line, y_axis, start, end)
+
+    # this point stack is actually the combined coordinates of all the padded points
+
+    # final_path = astar.VanillaImplementation.PathPlanner(point_stack_valid, start, end)
+    # print(final_path)
+
+    if final_path:
+        plt.scatter(depth_line, y_axis, c = depth_line, cmap = 'viridis', marker='.')
+        plt.scatter(depth_line_padded, y_axis_padded, c = depth_line_padded, cmap = 'Blues', marker='x')
+        final_path_x = [pair[0] for pair in final_path]
+        final_path_y = [pair[1] for pair in final_path]
+        plt.scatter(final_path_x, final_path_y, c = final_path_x, cmap = "Reds", marker = 'o')
+        plt.title("Efficient traversal path")
+        plt.show()
+    
+    return

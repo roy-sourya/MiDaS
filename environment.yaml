@@ -15,3 +15,6 @@ dependencies:
     - timm==0.6.12
     - einops==0.6.0
     - matplotlib
+    - alive-progress
+    - pip install cupy-cuda117
+    - networkx
